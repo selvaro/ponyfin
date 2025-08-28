@@ -26,14 +26,14 @@ services:
     environment:
       - BOT_TOKEN=${BOT_TOKEN}
 
-  metabase:
-    image: metabase/metabase:latest
-    depends_on:
-      - postgres
-    volumes:
-      - './metabase_data/:/metabase.db'
-    ports:
-      - "3000:3000"
+#  metabase:
+#    image: metabase/metabase:latest
+#    depends_on:
+#      - postgres
+#    volumes:
+#      - './metabase_data/:/metabase.db'
+#    ports:
+#      - "3000:3000"
 
   ollama:
     image: ollama/ollama:latest
