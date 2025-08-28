@@ -1,6 +1,8 @@
 import json
+from os import getenv
 
 from db import connection
+from dotenv import load_dotenv
 from langchain_community.utilities import SQLDatabase
 from langchain_core.output_parsers import StrOutputParser
 from langchain_core.prompts import ChatPromptTemplate
@@ -8,6 +10,8 @@ from langchain_core.runnables import RunnableBranch, RunnablePassthrough
 from langchain_ollama.chat_models import ChatOllama
 from sqlalchemy import text
 from templates import response_template, sql_template
+
+load_dotenv()
 
 db_uri = "postgresql+psycopg2://llm:0000123450000@postgres:5432/ponyfin"
 
@@ -44,7 +48,10 @@ def get_schema(_):
 
 
 llm = ChatOllama(
-    model="llama3.2:3b", stream=False, base_url="http://ollama:11434", temperature=0
+    model=getenv("MODEL_NAME"),
+    stream=False,
+    base_url="http://ollama:11434",
+    temperature=0,
 )
 
 
