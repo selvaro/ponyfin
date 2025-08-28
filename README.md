@@ -19,7 +19,6 @@
   - ```sudo docker-compose exec -it ollama ollama pull llama3.2:3b```
 - Rebuild docker-compose:
   - ```sudo docker-compose up --build -d```
-## You should be able to use bot now
+### You should be able to use bot now
 
-## If any errors occur, and they most likely will, run ```sudo docker-compose logs <container_name>```.
-## Most errors come from api container, wich is where the AI at, so start looking from there
+If any errors occur, and they most likely will, run ```sudo docker-compose logs <container_name>```. Most errors come from api container, wich is where the AI at, so start looking from there
