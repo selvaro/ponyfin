@@ -1,0 +1,5 @@
+venv
+.env
+postgres/data
+metabase_data
+ollama
