@@ -9,35 +9,41 @@ services:
     volumes:
       - './postgres/data:/var/lib/postgresql/data'
       - './postgres/init:/docker-entrypoint-initdb.d'
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER} -d ${DB_NAME}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+      start_period: 1s
 
   api:
     build: ./api/
     depends_on:
-      - postgres
+      postgres:
+        condition: service_healthy
     ports:
       - "8000:8000"
     env_file:
       - ./.env
 
-  bot:
-    build: ./bot/
-    depends_on:
-      - api
-    environment:
-      - BOT_TOKEN=${BOT_TOKEN}
-
-#  metabase:
-#    image: metabase/metabase:latest
+#  bot:
+#    build: ./bot/
 #    depends_on:
-#      - postgres
-#    volumes:
-#      - './metabase_data/:/metabase.db'
-#    ports:
-#      - "3000:3000"
+#      - api
+#    environment:
+#      - BOT_TOKEN=${BOT_TOKEN}
 
-  ollama:
-    image: ollama/ollama:latest
-    container_name: ollama
+  metabase:
+    image: metabase/metabase:latest
+    depends_on:
+      - postgres
     volumes:
-      - './model/:/app/models'
-      - './ollama:/root/.ollama'
+      - './metabase_data/:/metabase.db'
+    ports:
+      - "3000:3000"
+
+#  ollama:
+#    image: ollama/ollama:latest
+#    container_name: ollama
+#    volumes:
+#      - './ollama:/root/.ollama'

@@ -1,112 +1,136 @@
 import json
+from datetime import datetime
 from os import getenv
 
-from db import connection
+import pytz
+from db import log_tools
 from dotenv import load_dotenv
-from langchain_community.utilities import SQLDatabase
 from langchain_core.output_parsers import StrOutputParser
 from langchain_core.prompts import ChatPromptTemplate
-from langchain_core.runnables import RunnableBranch, RunnablePassthrough
-from langchain_ollama.chat_models import ChatOllama
-from sqlalchemy import text
-from templates import response_template, sql_template
+from langchain_groq import ChatGroq
+from templates import response_template, system_prompt
+from tools import TOOLS_JSON, run_tool
 
 load_dotenv()
 
-db_uri = "postgresql+psycopg2://llm:0000123450000@postgres:5432/ponyfin"
 
-db = SQLDatabase.from_uri(
-    db_uri,
-    view_support=True,
-    include_tables=["budgets", "categories", "expenses", "incomes"],
-)
+def get_current_timestamptz():
+    kyiv_tz = pytz.timezone("Europe/Kyiv")
+    current_time = datetime.now(kyiv_tz)
+    return current_time.strftime("%Y-%m-%d %H:%M:%S%z")
 
-loged_sql = ""
+
+tools_called = []
 
 
 def make_response(user_id, question):
     response = run_full_chain(user_id, question)
 
-    with connection.cursor() as cur:
-        cur.execute(
-            "INSERT INTO execution_log (user_id, question, generated_sql, response) VALUES (%s, %s, %s, %s)",
-            (
-                user_id,
-                question,
-                loged_sql,
-                response["answer"],
-            ),
-        )
-        connection.commit()
-
-    return response
-
-
-def get_schema(_):
-    schema = db.get_table_info()
-    return schema
-
-
-llm = ChatOllama(
-    model=getenv("MODEL_NAME"),
-    stream=False,
-    base_url="http://ollama:11434",
-    temperature=0,
-)
-
-
-def run_with_user_id(user_id: int, sql_query: str):
-    global loged_sql
-    loged_sql = sql_query
-    engine = db._engine
-    with engine.begin() as conn:
-        conn.execute(
-            text("SET LOCAL app.current_user_id = :user_id"), {"user_id": user_id}
-        )
-        result = conn.execute(text(sql_query))
-        if result.returns_rows:
-            return result.fetchall()
-        return None
+    log_tools(
+        user_id=user_id,
+        question=question,
+        tools_called=response["tools_called"],
+        tools_results=response["tools_results"],
+        response=response["answer"],
+    )
+    global tools_called
+    tools_called = []
+    return {"answer": response["answer"]}
 
 
 def run_full_chain(user_id, question):
-    prompt = ChatPromptTemplate.from_template(sql_template)
-
-    sql_chain = (
-        RunnablePassthrough.assign(schema=get_schema)
-        | prompt
-        | llm
-        | StrOutputParser()
-        | (lambda s: json.loads(s))
+    llm = ChatGroq(
+        model=getenv("MODEL_NAME"),
+        temperature=0,
     )
 
-    prompt_response = ChatPromptTemplate.from_template(response_template)
+    prompt = ChatPromptTemplate.from_messages(
+        [
+            (
+                "system",
+                system_prompt.format(
+                    tools_json=json.dumps(TOOLS_JSON),
+                    current_time=get_current_timestamptz(),
+                )
+                .replace("{", "{{")
+                .replace("}", "}}"),
+            ),
+            ("human", "{question}\nPrevious tool results: {tool_results}"),
+        ]
+    )
 
-    branch = RunnableBranch(
-        (
-            lambda vars: vars["query"]["sql"] is True,
-            RunnablePassthrough.assign(
-                schema=get_schema,
-                response=lambda vars: run_with_user_id(
-                    user_id, vars["query"]["response"]
+    def execute_tool(vars):
+        tool_results = []
+        if isinstance(vars, dict):
+            tool_calls = vars.get("tool_calls", [])
+        else:
+            tool_calls = getattr(vars, "tool_calls", [])
+
+        if tool_calls:
+            for tool_call in tool_calls:
+                global tools_called
+                args = (
+                    tool_call["args"]
+                    if isinstance(tool_call, dict)
+                    else json.loads(tool_call.args)
+                )
+                tool_name = (
+                    tool_call["name"] if isinstance(tool_call, dict) else tool_call.name
+                )
+                tools_called.append(f"Tool called: {tool_name} with arguments: {args}")
+                print(f"{user_id}; {tool_name}; {args}", flush=True)
+                result = run_tool(user_id, tool_name, args)
+                print(result, flush=True)
+                tool_results.append({"tool": tool_name, "result": result})
+                print(tool_results, flush=True)
+            return {
+                "tool_results": tool_results,
+                "tool_calls": [],
+            }
+        return {
+            "tool_results": tool_results,
+            "tool_calls": [],
+        }
+
+    chain = (
+        prompt
+        | llm.bind(tools=json.loads(TOOLS_JSON), tool_choice="auto")
+        | execute_tool
+    )
+
+    max_iterations = 5
+    state = {"question": question, "tool_results": []}
+    for _ in range(max_iterations):
+        result = chain.invoke(state)
+        state["tool_results"] = result["tool_results"]
+        if not result.get("tool_calls"):
+            break
+
+    final_prompt = ChatPromptTemplate.from_messages(
+        [
+            (
+                "system",
+                response_template.format(
+                    results=json.dumps(state["tool_results"])
+                    .replace("{", "{{")
+                    .replace("}", "}}"),
                 ),
-            )
-            | prompt_response
-            | llm
-            | StrOutputParser(),
-        ),
-        (
-            RunnablePassthrough.assign(
-                schema=get_schema, response=lambda vars: vars["query"]["response"]
-            )
-            | prompt_response
-            | llm
-            | StrOutputParser()
-        ),
+            ),
+            ("human", "{question}\nTool results: {tool_results}"),
+        ]
     )
-
-    full_chain = RunnablePassthrough.assign(query=sql_chain) | branch
+    final_chain = final_prompt | llm | StrOutputParser()
+    final_answer = final_chain.invoke(
+        {
+            "question": question,
+            "tool_results": json.dumps(state["tool_results"])
+            .replace("{", "{{")
+            .replace("}", "}}"),
+        }
+    )
 
     return {
-        "answer": full_chain.invoke({"question": question}),
+        "answer": final_answer,
+        "tools_called": json.dumps(tools_called),
+        "tools_results": json.dumps(state["tool_results"]),
     }

@@ -42,9 +42,10 @@ CREATE TABLE budgets (
 
 CREATE TABLE execution_log (
   id BIGSERIAL PRIMARY KEY,
-  user_id BIGINT,
+  user_id BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   question TEXT,
-  generated_sql TEXT,
-  response TEXT,
-  created_at TIMESTAMP DEFAULT NOW()
-)
+  tools_called TEXT,
+  ai_response TEXT,
+  tools_results TEXT,
+  date TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
+);

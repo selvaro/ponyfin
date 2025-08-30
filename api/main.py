@@ -1,6 +1,6 @@
 import db
 from chains import make_response
-from flask import Flask, jsonify, request
+from flask import Flask, request
 
 app = Flask(__name__)
 
@@ -13,7 +13,7 @@ def post_user():
     if "telegram_id" in data and "name" in data:
         db.insert_user(data)
     else:
-        return jsonify({"message": "Invalid data"}), 400
+        return {"message": "Invalid data"}, 400
     return {"message": "success"}, 201
 
 
@@ -22,7 +22,7 @@ def prompt():
     data = request.json
     user_id = db.get_user_registered(data["user_id"])
     if user_id:
-        return make_response(user_id=user_id, question=data["prompt"])
+        return make_response(user_id=user_id[0], question=data["prompt"])
     return {"message": "Not registered"}, 401
 
 
