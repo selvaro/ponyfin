@@ -7,7 +7,7 @@ from db import log_tools
 from dotenv import load_dotenv
 from langchain_core.output_parsers import StrOutputParser
 from langchain_core.prompts import ChatPromptTemplate
-from langchain_groq import ChatGroq
+from langchain_ollama import ChatOllama
 from templates import response_template, system_prompt
 from tools import TOOLS_JSON, run_tool
 
@@ -39,8 +39,10 @@ def make_response(user_id, question):
 
 
 def run_full_chain(user_id, question):
-    llm = ChatGroq(
+    llm = ChatOllama(
         model=getenv("MODEL_NAME"),
+        stream=False,
+        base_url="http://ollama:11434"
         temperature=0,
     )
 
@@ -70,19 +72,18 @@ def run_full_chain(user_id, question):
             for tool_call in tool_calls:
                 global tools_called
                 args = (
-                    tool_call["args"]
+                    tool_call["function"]["arguments"]
                     if isinstance(tool_call, dict)
-                    else json.loads(tool_call.args)
+                    else json.loads(tool_call.function.arguments)
                 )
                 tool_name = (
-                    tool_call["name"] if isinstance(tool_call, dict) else tool_call.name
+                    tool_call["function"]["name"]
+                    if isinstance(tool_call, dict)
+                    else tool_call.function.name
                 )
                 tools_called.append(f"Tool called: {tool_name} with arguments: {args}")
-                print(f"{user_id}; {tool_name}; {args}", flush=True)
                 result = run_tool(user_id, tool_name, args)
-                print(result, flush=True)
                 tool_results.append({"tool": tool_name, "result": result})
-                print(tool_results, flush=True)
             return {
                 "tool_results": tool_results,
                 "tool_calls": [],

@@ -11,11 +11,12 @@
     - ```DB_NAME="<your_database_name>"``` - name for your database
     - ```DB_USER="<your_user_name>"``` - name for admin user
     - ```DB_USER_PASSWORD="<your_password>"``` - password for admin user
-    - ```MODEL_NAME="<your_model_name>"``` - model name you are using, in my case llama-3.1-8b-instant
-    - ```GROQ_API_KEY="your_key"``` - groq api key to connect to
+    - ```MODEL_NAME="<your_model_name>"``` - model name you are using, in my case llama3.1:8b
 - Install docker and docker-compose (if not installed)
 - Start docker-compose:
   - ```sudo docker-compose up --build -d```
+- Pull ollama llm you are gonna use (same as in .env):
+  - ```sudo docker-compose exec -it ollama ollama pull <model_name>```
 ### You should be able to use bot now
 
 If any errors occur, and they most likely will, run ```sudo docker-compose logs <container_name>```. Most errors come from api container, wich is where the AI at, so start looking from there

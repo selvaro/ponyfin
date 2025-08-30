@@ -338,7 +338,7 @@ def add_category(user_id, name, description=None):
     return new_id
 
 
-def update_category(user_id, id, name=None, description=None):
+def update_category(user_id, id, nhttps://github.com/selvaro/ponyfiname=None, description=None):
     conn = get_db_connection()
     cursor = conn.cursor()
     query = """
@@ -782,7 +782,6 @@ def run_tool(user_id, function_name, args):
 
         result = func(user_id, **args_dict)
 
-        print(result, flush=True)
         return result
     except TypeError as e:
         raise ValueError(f"Invalid arguments for function '{function_name}': {str(e)}")
