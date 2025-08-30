@@ -26,21 +26,21 @@ services:
     env_file:
       - ./.env
 
-#  bot:
-#    build: ./bot/
-#    depends_on:
-#      - api
-#    environment:
-#      - BOT_TOKEN=${BOT_TOKEN}
-
-  metabase:
-    image: metabase/metabase:latest
+  bot:
+    build: ./bot/
     depends_on:
-      - postgres
-    volumes:
-      - './metabase_data/:/metabase.db'
-    ports:
-      - "3000:3000"
+      - api
+    environment:
+      - BOT_TOKEN=${BOT_TOKEN}
+
+#  metabase:
+#    image: metabase/metabase:latest
+#    depends_on:
+#      - postgres
+#    volumes:
+#      - './metabase_data/:/metabase.db'
+#    ports:
+#      - "3000:3000"
 
 #  ollama:
 #    image: ollama/ollama:latest
