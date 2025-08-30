@@ -11,13 +11,10 @@
     - ```DB_NAME="<your_database_name>"``` - name for your database
     - ```DB_USER="<your_user_name>"``` - name for admin user
     - ```DB_USER_PASSWORD="<your_password>"``` - password for admin user
-    - ```MODEL_NAME="<your_model_name>"``` - model name you are using, in my case llama3.2:3b
+    - ```MODEL_NAME="<your_model_name>"``` - model name you are using, in my case llama-3.1-8b-instant
+    - ```GROQ_API_KEY="your_key"``` - groq api key to connect to
 - Install docker and docker-compose (if not installed)
 - Start docker-compose:
-  - ```sudo docker-compose up --build -d```
-- Pull llama3.2:3b, or any other you like (just make sure it's the same one as specified in .env):
-  - ```sudo docker-compose exec -it ollama ollama pull llama3.2:3b```
-- Rebuild docker-compose:
   - ```sudo docker-compose up --build -d```
 ### You should be able to use bot now
 
